@@ -1,0 +1,54 @@
+<?php
+// Configuration
+$config = [
+    'server_url' => 'http://your-server-url.com', // Replace with your VPS server URL
+    'log_file' => 'uptime_log.txt', // Path to the log file
+    'email' => [
+        'to' => 'your-email@example.com', // Replace with your email address
+        'from' => 'noreply@example.com', // Replace with the "From" address for the email
+        'subject' => 'Server Status Notification' // Replace with the subject for the email
+    ]
+];
+
+// Function to check server status
+function checkServerStatus($serverURL) {
+    $ch = curl_init($serverURL);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_exec($ch);
+    $responseCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    return $responseCode;
+}
+
+// Function to send email
+function sendEmailNotification($message, $config) {
+    $to = $config['email']['to'];
+    $subject = $config['email']['subject'];
+    $headers = 'From: ' . $config['email']['from'] . "\r\n" .
+        'Reply-To: ' . $config['email']['from'] . "\r\n" .
+        'X-Mailer: PHP/' . phpversion();
+
+    mail($to, $subject, $message, $headers);
+}
+
+// Check server status
+$statusCode = checkServerStatus($config['server_url']);
+$status = ($statusCode === 200) ? 'UP' : 'DOWN';
+
+// Log the status and timestamp
+$logEntry = date('Y-m-d H:i:s') . ' | ' . $status . PHP_EOL;
+file_put_contents($config['log_file'], $logEntry, FILE_APPEND);
+
+// Send email notification if the status has changed
+$previousStatus = file_exists($config['log_file']) ? file_get_contents($config['log_file']) : '';
+$previousStatus = explode(' | ', trim($previousStatus));
+$previousStatus = end($previousStatus);
+
+if ($status !== $previousStatus) {
+    $message = 'Server Status: ' . $status;
+    sendEmailNotification($message, $config);
+}
+
+// Output the result
+echo 'Server Status: ' . $status;
+?>
